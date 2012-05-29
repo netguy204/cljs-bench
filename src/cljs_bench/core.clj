@@ -86,7 +86,7 @@
                             "CLOJURESCRIPT_HOME" ""))
         reader (string-reader (:out result))]
 
-    (recursive-delete dir)
+    ;;(recursive-delete dir)
     (read reader)))
 
 (defn safe-benchmark-revision [src treeish]
@@ -99,12 +99,21 @@
   (doseq [rev (git-revisions-between src start end)]
     (.write
      outstream
-     (pr-str {:revision rev :result (safe-benchmark-revision src rev)}))))
+     (pr-str {:revision rev :result (safe-benchmark-revision src rev)}))
+    (.flush outstream)))
 
 (defn benchmark-revisions [src outfile start end]
   (let [stream (io/writer outfile)]
     (.write stream "[")
     (write-benchmark-revisions src stream start end)
-    (.flush stream)
     (.write stream "]")
     (.close stream)))
+
+(defn read-data [file]
+  (read (java.io.PushbackReader. (io/reader file))))
+
+(defn extract-column [data runtime expr]
+  (for [rev data]
+    (let [measurements (get-in rev [:result runtime])]
+      (assoc (first (filter #(= expr (:expr %)) measurements))
+        :revision (:revision rev)))))

@@ -11,6 +11,7 @@
   (let [bs-str   (pr-str bindings)
         expr-str (pr-str expr)]
     `(let ~bindings
+       (~'js* "try {")
        (let [start#   (.getTime (js/Date.))
              ret#     (dotimes [_# ~iterations] ~expr)
              end#     (.getTime (js/Date.))
@@ -20,4 +21,13 @@
            {:bindings '~bindings
             :expr '~expr
             :iterations '~iterations
-            :elapsed-msecs elapsed#}))))))
+            :elapsed-msecs elapsed#})))
+
+       (~'js* "} catch (blank) {")
+       (~print-fn
+        (pr-str
+         {:bindings '~bindings
+          :expr '~expr
+          :iterations 'exception
+          :elapsed-msecs elapsed#}))
+       (~'js* "}"))))
