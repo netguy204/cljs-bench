@@ -16,14 +16,12 @@ fi
 
 if [ "$SPIDERMONKEY_HOME" != "" ]; then
   echo ":spidermonkey ["
-  echo "Benchmarking with SpiderMonkey"
   ${SPIDERMONKEY_HOME}/js -m -n -a -f out/core-advanced-benchmark.js
   echo "]"
 fi
 
 if [ "$JSC_HOME" != "" ]; then
   echo ":javascriptcore ["
-  echo "Benchmarking with JavaScriptCore"
   ${JSC_HOME}/jsc -f out/core-advanced-benchmark.js
   echo "]"
 fi

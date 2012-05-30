@@ -5,6 +5,13 @@
             [clojure.string :as string]))
 
 (def ^:dynamic *v8-home* "/usr/local/Cellar/v8/3.9.24/bin/")
+(def ^:dynamic *spidermonkey-home* "/Users/btaylor/local")
+(def ^:dynamic *jsc-home* "/Applications/WebKit.app/Contents/Frameworks/10.7/JavaScriptCore.framework/Resources/")
+(def ^:dynamic *jsc-libs* "/Applications/WebKit.app/Contents/Frameworks/10.7/")
+
+(def ^:dynamic *gnuplot-path*
+  "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
+(def ^:dynamic *delete-tempdir* true)
 
 ;;; from clojure-script-one
 
@@ -84,10 +91,16 @@
                      :dir dir
                      :env (assoc (current-environment)
                             "V8_HOME" *v8-home*
+                            "SPIDERMONKEY_HOME" *spidermonkey-home*
+                            "JSC_HOME" *jsc-home*
+                            "DYLD_FRAMEWORK_PATH" *jsc-libs*
                             "CLOJURESCRIPT_HOME" ""))
         reader (string-reader (:out result))]
 
-    ;;(recursive-delete dir)
+    (if *delete-tempdir*
+      (recursive-delete dir)
+      (println "temporary directory " dir " was not deleted"))
+    
     (read reader)))
 
 (defn- safe-benchmark-revision [src treeish]
@@ -142,9 +155,6 @@
     (interpose-str "\n"
       (map #(interpose-str "," %) table))))
 
-(def ^:dynamic *gnuplot-path*
-  "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
-
 (defn- standard-deviation [values]
   (let [sum (reduce + values)
         n (count values)
@@ -154,6 +164,11 @@
                        0 values)]
     (Math/sqrt (- (/ sumsqr n)
                   (* mean mean)))))
+
+(defn- ->coll [val]
+  (if (coll? val)
+    val
+    [val]))
 
 (defn plot-data [data runtime outdir]
   (let [labels (rest (benchmark-names data runtime))
