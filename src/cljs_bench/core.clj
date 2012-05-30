@@ -159,23 +159,35 @@
     (.mkdir (io/file outdir))
     
     (for [[plot-number title column] labeled-columns]
-      (let [rows (map vector (reverse (range (count column))) revisions column)
+      (let [filtered-column (filter identity column)
+            min-column-time (reduce min filtered-column)
+            max-column-time (reduce max filtered-column)
+            column-range (- max-column-time min-column-time)
+            [plot-min plot-max]
+            (if (< min-column-time 300)
+              [0 300]
+              [0 (+ min-column-time (/ column-range 2))])
+            rows (map vector (reverse (range (count column))) revisions column)
             rows (map #(interpose-str " " %) rows)
             column (interpose-str "\n" rows)
             tempfile (temporary-file-name)
             outfile (io/file outdir (str plot-number ".png"))
-            command (str "set grid\n"
-                         "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
-                         "set terminal png\n"
-                         "set ylabel \"msecs\"\n"
-                         "set output \"" outfile "\"\n"
-                         "plot \"" tempfile
-                         "\" using 1:3:xtic(2)"
-                         " title '" title "'"
-                         " with linespoints\n")]
-        ;;(println command)
+            command (str
+                     "set terminal png\n"
+                     "set grid\n"
+                     "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
+                     "set ylabel \"msecs\"\n"
+                     "set output \"" outfile "\"\n"
+                     "plot [][" plot-min ":" plot-max "]\"" tempfile
+                     "\" using 1:3:xtic(2)"
+                     " title '" title "'"
+                     " with linespoints\n")]
         (spit tempfile column)
-        (sh/sh *gnuplot-path* :in command)
+        (let [notes (sh/sh *gnuplot-path* :in command)
+              err (string/trim-newline (:err notes))]
+          (when (not (empty? err))
+            (println err)))
+        
         (io/delete-file tempfile)
         {:file outfile
          :title title
@@ -198,8 +210,10 @@
                [:h1 "Clojurescript Benchmark Times"]
                [:a {:href "https://github.com/netguy204/cljs-bench/blob/master/test-scaffold/cljs-bench/cljs/benchmark_runner.cljs"}
                 "[benchmark source]"]
+               [:br]
                [:a {:href "http://github.com/netguy204/cljs-bench"}
                 "[cljs-bench source]"]
+               [:br]
                [:a {:href (.getName results-csv)}
                 "[results as CSV]"]
                links
