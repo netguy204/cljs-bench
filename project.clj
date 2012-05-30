@@ -1,4 +1,5 @@
 (defproject cljs-bench "1.0.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "benchmark clojurescript from git"
   :dependencies [[org.clojure/clojure "1.3.0"]
-                 [hiccup "1.0.0"]])
+                 [hiccup "1.0.0"]]
+  :main cljs-bench.main)

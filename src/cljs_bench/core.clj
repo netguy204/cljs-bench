@@ -196,13 +196,18 @@
         body [:html
               [:body
                [:h1 "Clojurescript Benchmark Times"]
-               [:a {:href (.getName results-csv)} "Download as CSV"]
+               [:a {:href "https://github.com/netguy204/cljs-bench/blob/master/test-scaffold/cljs-bench/cljs/benchmark_runner.cljs"}
+                "[benchmark source]"]
+               [:a {:href "http://github.com/netguy204/cljs-bench"}
+                "[cljs-bench source]"]
+               [:a {:href (.getName results-csv)}
+                "[results as CSV]"]
                links
                imgs]]]
     (spit (io/file outdir "index.html") (html body))
     (spit results-csv (results->csv data runtime))))
 
-(defn update-benchmarks [dir old-results]
+(defn update-benchmarks [dir output-dir]
   (let [last-head (io/file "last-head")
         last-sha1 (string/trim-newline
                    (slurp last-head))
@@ -211,13 +216,17 @@
         results-next "results-next.clj"
         results "results.clj"]
 
-    (when (not= last-sha1 current-sha1)
-      (benchmark-revisions dir results-next current-sha1 last-sha1)
-
-      (if old-results
-        (merge-data results results-next old-results)
-        (copy-tree results-next results))
+    (if (= last-sha1 current-sha1)
+      (println "no changes since " last-sha1)
       
-      (plot-gallery (read-data results) :v8 "temp")
-      (spit last-head current-sha1))))
+      (do
+        (println "benchmarking between " last-sha1 " and " current-sha1)
+        (benchmark-revisions dir results-next current-sha1 last-sha1)
+        
+        (if (.exists (io/file results))
+          (merge-data results results-next results)
+          (copy-tree results-next results))
+        
+        (plot-gallery (read-data results) :v8 output-dir)
+        (spit last-head current-sha1)))))
 

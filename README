@@ -1,10 +1,26 @@
 # cljs-bench
 
-FIXME: write description
+Runs the benchmarks in
+test-scaffold/cljs-bench/cljs/benchmark_runner.cljs against checkouts
+of Clojurescript and summarizes the results as an html report with
+plots. See http://50ply.com/cljs-bench/ for an example.
 
 ## Usage
 
-FIXME: write
+Assumes you already have a working Clojurescript that was cloned from
+git. Create a file named last-head inside your copy of cljs-bench and
+put the SHA1 of the earliest version you care about in this file.
+
+Then, if using leiningen:
+
+lein run ~/src/clojurescript/ report
+
+This will check out and run the benchmarks in every version of
+clojurescript between the version you mentioned and origin/master of
+the local clojurescript repository you pointed cljs-bench at. When its
+done it will update the last-head file to point at the current
+location of origin/master. To perform incremental updates, just fetch
+into your local clojurescript repo and run the above command again.
 
 ## License
 
