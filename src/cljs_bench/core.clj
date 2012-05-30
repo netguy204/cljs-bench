@@ -136,10 +136,17 @@
     (cons "revision" (map #(str (pr-str (:bindings %)) " "
                                 (pr-str (:expr %))) tests))))
 
-(defn- tabulate-data [data runtime]
+(defn- tabulate-data [data]
   (for [revision data]
     (cons (:revision revision)
-          (map #(:elapsed-msecs %) (get-in revision [:result runtime])))))
+          (map (fn [v8 sp jsc]
+                 {:v8 (:elapsed-msecs v8)
+                  :spidermonkey (:elapsed-msecs sp)
+                  :javascriptcore (:elapsed-msecs jsc)})
+               
+               (get-in revision [:result :v8])
+               (get-in revision [:result :spidermonkey])
+               (get-in revision [:result :javascriptcore])))))
 
 ;; [[1,2],[3,4,5]] => [[1,3],[2,4],[5]]
 
@@ -151,9 +158,9 @@
 
 (defn results->csv [data runtime]
   (let [table (cons (benchmark-names data runtime)
-                    (tabulate-data data runtime))]
+                    (tabulate-data data))]
     (interpose-str "\n"
-      (map #(interpose-str "," %) table))))
+      (map #(interpose-str "," (map runtime %)) table))))
 
 (defn- standard-deviation [values]
   (let [sum (reduce + values)
@@ -170,9 +177,9 @@
     val
     [val]))
 
-(defn plot-data [data runtime outdir]
-  (let [labels (rest (benchmark-names data runtime))
-        data (transpose (tabulate-data data runtime))
+(defn plot-data [data outdir]
+  (let [labels (rest (benchmark-names data :v8))
+        data (transpose (tabulate-data data))
         revisions (map #(apply str (take 5 %)) (first data))
         columns (rest data)
         labeled-columns (map vector
@@ -184,7 +191,7 @@
     (.mkdir (io/file outdir))
     
     (for [[plot-number title column] labeled-columns]
-      (let [filtered-column (filter identity column)
+      (let [filtered-column (filter identity (mapcat vals column))
             min-column-time (reduce min filtered-column)
             max-column-time (reduce max filtered-column)
             column-range (- max-column-time min-column-time)
@@ -193,34 +200,51 @@
                           (min max-column-time
                                (+ min-column-time
                                   (* 3 (standard-deviation filtered-column)))))
-            rows (map vector (reverse (range (count column))) revisions column)
-            rows (map #(interpose-str " " %) rows)
-            column (interpose-str "\n" rows)
-            tempfile (temporary-file-name)
+            tempfiles
+            (for [runtime [:v8 :spidermonkey :javascriptcore]]
+              (let [rows (map vector
+                              (reverse (range (count column)))
+                              revisions
+                              (map runtime column))
+                    rows (map #(interpose-str " " %) rows)
+                    column (interpose-str "\n" rows)
+                    tempfile (temporary-file-name)]
+                (spit tempfile column)
+                [runtime tempfile]))
+
             outfile (io/file outdir (str plot-number ".png"))
+            plotrange (str "[][" plot-min ":" plot-max "]")
+
+            plotlines
+            (for [[runtime tempfile] tempfiles]
+              (str "\"" tempfile
+                   "\" using 1:3:xtic(2) title '" (name runtime) "'"
+                   " with linespoints"))
+
+            plotline (str "plot " plotrange (interpose-str ", " plotlines) "\n")
             command (str
+                     "set title '" title "'\n"
                      "set terminal png\n"
                      "set grid\n"
                      "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
                      "set ylabel \"msecs\"\n"
                      "set output \"" outfile "\"\n"
-                     "plot [][" plot-min ":" plot-max "]\"" tempfile
-                     "\" using 1:3:xtic(2)"
-                     " title '" title "'"
-                     " with linespoints\n")]
-        (spit tempfile column)
+                     plotline)]
+        
         (let [notes (sh/sh *gnuplot-path* :in command)
               err (string/trim-newline (:err notes))]
           (when (not (empty? err))
             (println err)))
+
+        (doseq [[_ tempfile] tempfiles]
+          (io/delete-file tempfile))
         
-        (io/delete-file tempfile)
         {:file outfile
          :title title
          :number plot-number}))))
 
-(defn plot-gallery [data runtime outdir]
-  (let [results (plot-data data runtime outdir)
+(defn plot-gallery [data outdir]
+  (let [results (plot-data data outdir)
         imgs (map #(list [:a {:name (str "plot" (:number %))}]
                          [:img {:src (.getName (:file %))}])
                   results)
@@ -230,7 +254,10 @@
                       [:a {:href (str "#plot" (:number %))}
                        (str (:title %))]])
                    results)
-        results-csv (io/file outdir "results.csv")
+        results-csvs (for [runtime [:v8 :spidermonkey :javascriptcore]]
+                       {:runtime runtime
+                        :file (io/file outdir (str (name runtime)
+                                                   ".csv"))}) 
         body [:html
               [:body
                [:h1 "Clojurescript Benchmark Times"]
@@ -240,12 +267,18 @@
                [:a {:href "http://github.com/netguy204/cljs-bench"}
                 "[cljs-bench source]"]
                [:br]
-               [:a {:href (.getName results-csv)}
-                "[results as CSV]"]
+               (for [results-csv results-csvs]
+                 (list
+                  [:a {:href (.getName (:file results-csv))}
+                   "[" (name (:runtime results-csv)) " as CSV]"]
+                  [:br]))
                links
                imgs]]]
-    (spit (io/file outdir "index.html") (html body))
-    (spit results-csv (results->csv data runtime))))
+    
+    (doseq [results-csv results-csvs]
+      (spit (:file results-csv) (results->csv data (:runtime results-csv))))
+    
+    (spit (io/file outdir "index.html") (html body))))
 
 (defn update-benchmarks [dir output-dir]
   (let [last-head (io/file "last-head")
