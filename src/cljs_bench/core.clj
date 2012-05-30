@@ -11,7 +11,10 @@
 
 (def ^:dynamic *gnuplot-path*
   "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
+
 (def ^:dynamic *delete-tempdir* true)
+
+(def ^:dynamic *runtimes* [:v8 :spidermonkey :javascriptcore])
 
 ;;; from clojure-script-one
 
@@ -201,7 +204,7 @@
                                (+ min-column-time
                                   (* 3 (standard-deviation filtered-column)))))
             tempfiles
-            (for [runtime [:v8 :spidermonkey :javascriptcore]]
+            (for [runtime *runtimes*]
               (let [rows (map vector
                               (reverse (range (count column)))
                               revisions
@@ -254,7 +257,7 @@
                       [:a {:href (str "#plot" (:number %))}
                        (str (:title %))]])
                    results)
-        results-csvs (for [runtime [:v8 :spidermonkey :javascriptcore]]
+        results-csvs (for [runtime *runtimes*]
                        {:runtime runtime
                         :file (io/file outdir (str (name runtime)
                                                    ".csv"))}) 
@@ -300,6 +303,6 @@
           (merge-data results results-next results)
           (copy-tree results-next results))
         
-        (plot-gallery (read-data results) :v8 output-dir)
+        (plot-gallery (read-data results) output-dir)
         (spit last-head current-sha1)))))
 
