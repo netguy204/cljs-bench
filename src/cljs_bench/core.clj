@@ -145,6 +145,16 @@
 (def ^:dynamic *gnuplot-path*
   "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
 
+(defn- standard-deviation [values]
+  (let [sum (reduce + values)
+        n (count values)
+        mean (/ sum n)
+        sumsqr (reduce (fn [result val]
+                         (+ result (* val val)))
+                       0 values)]
+    (Math/sqrt (- (/ sumsqr n)
+                  (* mean mean)))))
+
 (defn plot-data [data runtime outdir]
   (let [labels (rest (benchmark-names data runtime))
         data (transpose (tabulate-data data runtime))
@@ -163,10 +173,11 @@
             min-column-time (reduce min filtered-column)
             max-column-time (reduce max filtered-column)
             column-range (- max-column-time min-column-time)
-            [plot-min plot-max]
-            (if (< min-column-time 300)
-              [0 300]
-              [0 (+ min-column-time (/ column-range 2))])
+            plot-min 0
+            plot-max (max 300
+                          (min max-column-time
+                               (+ min-column-time
+                                  (* 3 (standard-deviation filtered-column)))))
             rows (map vector (reverse (range (count column))) revisions column)
             rows (map #(interpose-str " " %) rows)
             column (interpose-str "\n" rows)
