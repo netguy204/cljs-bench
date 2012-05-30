@@ -1,4 +1,5 @@
 (ns cljs-bench.core
+  (:use [hiccup.core :only [html]])
   (:require [clojure.java.shell :as sh]
             [clojure.java.io :as io]
             [clojure.string :as string]))
@@ -89,13 +90,13 @@
     ;;(recursive-delete dir)
     (read reader)))
 
-(defn safe-benchmark-revision [src treeish]
+(defn- safe-benchmark-revision [src treeish]
   (try
     (benchmark-revision src treeish)
     (catch Exception ex
       nil)))
 
-(defn write-benchmark-revisions [src outstream start end]
+(defn- write-benchmark-revisions [src outstream start end]
   (doseq [rev (git-revisions-between src start end)]
     (.write
      outstream
@@ -109,11 +110,114 @@
     (.write stream "]")
     (.close stream)))
 
-(defn read-data [file]
+(defn- read-data [file]
   (read (java.io.PushbackReader. (io/reader file))))
 
-(defn extract-column [data runtime expr]
-  (for [rev data]
-    (let [measurements (get-in rev [:result runtime])]
-      (assoc (first (filter #(= expr (:expr %)) measurements))
-        :revision (:revision rev)))))
+(defn- merge-data [output in1 in2]
+  (let [data (concat (read-data in1) (read-data in2))]
+    (spit output (pr-str data))))
+
+(defn- benchmark-names [data runtime]
+  (let [revision (first data)
+        tests (get-in revision [:result runtime])]
+    (cons "revision" (map #(str (pr-str (:bindings %)) " "
+                                (pr-str (:expr %))) tests))))
+
+(defn- tabulate-data [data runtime]
+  (for [revision data]
+    (cons (:revision revision)
+          (map #(:elapsed-msecs %) (get-in revision [:result runtime])))))
+
+;; [[1,2],[3,4,5]] => [[1,3],[2,4],[5]]
+
+(defn- transpose [data]
+  (apply map vector data))
+
+(defn- interpose-str [item coll]
+  (apply str (interpose item coll)))
+
+(defn results->csv [data runtime]
+  (let [table (cons (benchmark-names data runtime)
+                    (tabulate-data data runtime))]
+    (interpose-str "\n"
+      (map #(interpose-str "," %) table))))
+
+(def ^:dynamic *gnuplot-path*
+  "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
+
+(defn plot-data [data runtime outdir]
+  (let [labels (rest (benchmark-names data runtime))
+        data (transpose (tabulate-data data runtime))
+        revisions (map #(apply str (take 5 %)) (first data))
+        columns (rest data)
+        labeled-columns (map vector
+                             (range (count labels))
+                             labels columns)]
+
+    ;; set up for output
+    (io/make-parents (io/file outdir))
+    (.mkdir (io/file outdir))
+    
+    (for [[plot-number title column] labeled-columns]
+      (let [rows (map vector (reverse (range (count column))) revisions column)
+            rows (map #(interpose-str " " %) rows)
+            column (interpose-str "\n" rows)
+            tempfile (temporary-file-name)
+            outfile (io/file outdir (str plot-number ".png"))
+            command (str "set grid\n"
+                         "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
+                         "set terminal png\n"
+                         "set ylabel \"msecs\"\n"
+                         "set output \"" outfile "\"\n"
+                         "plot \"" tempfile
+                         "\" using 1:3:xtic(2)"
+                         " title '" title "'"
+                         " with linespoints\n")]
+        ;;(println command)
+        (spit tempfile column)
+        (sh/sh *gnuplot-path* :in command)
+        (io/delete-file tempfile)
+        {:file outfile
+         :title title
+         :number plot-number}))))
+
+(defn plot-gallery [data runtime outdir]
+  (let [results (plot-data data runtime outdir)
+        imgs (map #(list [:a {:name (str "plot" (:number %))}]
+                         [:img {:src (.getName (:file %))}])
+                  results)
+        links (map #(vector
+                     :ul
+                     [:li
+                      [:a {:href (str "#plot" (:number %))}
+                       (str (:title %))]])
+                   results)
+        results-csv (io/file outdir "results.csv")
+        body [:html
+              [:body
+               [:h1 "Clojurescript Benchmark Times"]
+               [:a {:href (.getName results-csv)} "Download as CSV"]
+               links
+               imgs]]]
+    (spit (io/file outdir "index.html") (html body))
+    (spit results-csv (results->csv data runtime))))
+
+(defn update-benchmarks [dir old-results]
+  (let [last-head (io/file "last-head")
+        last-sha1 (string/trim-newline
+                   (slurp last-head))
+        current-sha1 (string/trim-newline
+                      (:out (exec "git" "rev-parse" "origin/master" :dir dir)))
+        results-next "results-next.clj"
+        results "results.clj"]
+
+    (when (not= last-sha1 current-sha1)
+      (benchmark-revisions dir results-next current-sha1 last-sha1)
+
+      (if old-results
+        (merge-data results results-next old-results)
+        (copy-tree results-next results))
+      
+      (plot-gallery (read-data results) :v8 "temp")
+      (spit last-head current-sha1))))
+
