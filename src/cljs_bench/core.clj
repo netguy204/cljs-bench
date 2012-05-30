@@ -68,15 +68,12 @@
       (io/make-parents dest)
       (io/copy src dest))))
 
-(defn- clojurescript-home []
-  ((current-environment) "CLOJURESCRIPT_HOME"))
-
 (defn- prepare-working-directory [src treeish]
   (let [temp-name (temporary-file-name)]
     (git-clone src temp-name ".")
     (git-checkout treeish temp-name)
     (copy-tree (io/file "test-scaffold") temp-name)
-    (copy-tree (io/file (clojurescript-home) "lib") (io/file temp-name "lib"))
+    (copy-tree (io/file src "lib") (io/file temp-name "lib"))
     temp-name))
 
 (defn- recursive-delete [dir]
@@ -98,11 +95,15 @@
                             "JSC_HOME" *jsc-home*
                             "DYLD_FRAMEWORK_PATH" *jsc-libs*
                             "CLOJURESCRIPT_HOME" ""))
+        err (string/trim-newline (:err result))
         reader (string-reader (:out result))]
 
     (if *delete-tempdir*
       (recursive-delete dir)
       (println "temporary directory " dir " was not deleted"))
+
+    (when (not (empty? err))
+      (println "while running " treeish "\n" err))
     
     (read reader)))
 
@@ -137,7 +138,8 @@
   (let [revision (first data)
         tests (get-in revision [:result runtime])]
     (cons "revision" (map #(str (pr-str (:bindings %)) " "
-                                (pr-str (:expr %))) tests))))
+                                (pr-str (:expr %)) " "
+                                (:iterations %) " iters") tests))))
 
 (defn- tabulate-data [data]
   (for [revision data]
@@ -150,8 +152,6 @@
                (get-in revision [:result :v8])
                (get-in revision [:result :spidermonkey])
                (get-in revision [:result :javascriptcore])))))
-
-;; [[1,2],[3,4,5]] => [[1,3],[2,4],[5]]
 
 (defn- transpose [data]
   (apply map vector data))
