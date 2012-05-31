@@ -1,10 +1,19 @@
 rm -rf out
 mkdir -p out
 
-#bin/cljsc cljs-bench > out/core-benchmark.js
+# time a basic compile (excluding the time we spend in closure)
+
+T="$(date +%s)"
+bin/cljsc cljs-bench > out/core-benchmark.js
+T="$(($(date +%s)-T))"
+
+rm -rf out
+mkdir -p out
 bin/cljsc cljs-bench {:optimizations :advanced} > out/core-advanced-benchmark.js
 
 echo "{"
+
+echo ":compile-time-secs $T"
 
 if [ "$V8_HOME" != "" ]; then
   echo ":v8 ["
@@ -25,6 +34,13 @@ if [ "$JSC_HOME" != "" ]; then
   ${JSC_HOME}/jsc -f out/core-advanced-benchmark.js
   echo "]"
 fi
+
+# get the code size in bytes after gzip
+FILENAME=out/core-advanced-benchmark.js
+gzip $FILENAME
+FILESIZE=$(stat -f %z "$FILENAME.gz")
+
+echo ":gzipped-size-bytes $FILESIZE"
 
 echo "}"
 

@@ -289,8 +289,8 @@
                    (slurp last-head))
         current-sha1 (string/trim-newline
                       (:out (exec "git" "rev-parse" "origin/master" :dir dir)))
-        results-next "results-next.clj"
-        results "results.clj"]
+        results-next (io/file "results-next.clj")
+        results (io/file "results.clj")]
 
     (if (= last-sha1 current-sha1)
       (println "no changes since " last-sha1)

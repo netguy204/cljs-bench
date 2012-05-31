@@ -6,6 +6,7 @@
 (def println print)
 
 (set! *print-fn* js/print)
+(simple-benchmark-data [x 1] (identity x) 1000000)
 
 (def arr (let [arr (array)]
            (dotimes [i 1000000]
@@ -32,6 +33,9 @@
 (simple-benchmark-data [] (list 1 2 3) 1000000)
 (println)
 
+(simple-benchmark-data [] [] 1000000)
+(simple-benchmark-data [] [1 2 3] 1000000)
+(simple-benchmark-data [coll [1 2 3]] (transient coll) 100000)
 (simple-benchmark-data [coll [1 2 3]] (conj coll 4) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (-conj coll 4) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (seq coll) 1000000)
