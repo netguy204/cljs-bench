@@ -180,71 +180,98 @@
     val
     [val]))
 
+(def ^:dynamic *plot-number* (atom nil))
+
+(defn plot-column [labeled-column column-keys revisions outdir
+                   & {:keys [ylabel plot-min plot-min-max]
+                      :or {ylabel "msecs", plot-min 0, plot-min-max 300}}]
+  
+  (let [[title column] labeled-column
+        plot-number @*plot-number*
+        filtered-column (filter identity (mapcat vals column))
+        min-column-time (reduce min filtered-column)
+        max-column-time (reduce max filtered-column)
+        column-range (- max-column-time min-column-time)
+        plot-max (max plot-min-max
+                      (min max-column-time
+                           (+ min-column-time
+                              (* 3 (standard-deviation filtered-column)))))
+        tempfiles
+        (for [runtime column-keys]
+          (let [rows (map vector
+                          (reverse (range (count column)))
+                          revisions
+                          (map runtime column))
+                rows (map #(interpose-str " " %) rows)
+                column (interpose-str "\n" rows)
+                tempfile (temporary-file-name)]
+            (spit tempfile column)
+            [runtime tempfile]))
+        
+        outfile (io/file outdir (str plot-number ".png"))
+        plotrange (str "[][" plot-min ":" plot-max "]")
+        
+        plotlines
+        (for [[runtime tempfile] tempfiles]
+          (str "\"" tempfile
+               "\" using 1:3:xtic(2) title '" (name runtime) "'"
+               " with linespoints"))
+        
+        plotline (str "plot " plotrange (interpose-str ", " plotlines) "\n")
+        command (str
+                 "set title '" title "'\n"
+                 "set terminal png\n"
+                 "set grid\n"
+                 "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
+                 "set ylabel \"" ylabel "\"\n"
+                 "set output \"" outfile "\"\n"
+                 plotline)
+        
+        notes (sh/sh *gnuplot-path* :in command)
+        err (string/trim-newline (:err notes))]
+
+    ;; report any plot errors
+    (when (not (empty? err))
+      (println "while generating " plot-number "\n"
+               err))
+
+    ;; increment the plot number
+    (swap! *plot-number* inc)
+    
+    (doseq [[_ tempfile] tempfiles]
+      (io/delete-file tempfile))
+    
+    {:file outfile
+     :title title
+     :number (dec plot-number)}))
+
+
 (defn plot-data [data outdir]
-  (let [labels (rest (benchmark-names data :v8))
+  (reset! *plot-number* 0)
+  (let [results (map :result data)
+        ctime (map (fn [result] {:compile-time-secs (:compile-time-secs result)}) results)        
+        gzipped (map (fn [result] {:gzipped-size-bytes (:gzipped-size-bytes result)}) results)
+        labels (rest (benchmark-names data :v8))
         data (transpose (tabulate-data data))
         revisions (map #(apply str (take 5 %)) (first data))
         columns (rest data)
-        labeled-columns (map vector
-                             (range (count labels))
-                             labels columns)]
-
+        labeled-columns (map vector labels columns)]
+      
     ;; set up for output
     (io/make-parents (io/file outdir))
     (.mkdir (io/file outdir))
-    
-    (for [[plot-number title column] labeled-columns]
-      (let [filtered-column (filter identity (mapcat vals column))
-            min-column-time (reduce min filtered-column)
-            max-column-time (reduce max filtered-column)
-            column-range (- max-column-time min-column-time)
-            plot-min 0
-            plot-max (max 300
-                          (min max-column-time
-                               (+ min-column-time
-                                  (* 3 (standard-deviation filtered-column)))))
-            tempfiles
-            (for [runtime *runtimes*]
-              (let [rows (map vector
-                              (reverse (range (count column)))
-                              revisions
-                              (map runtime column))
-                    rows (map #(interpose-str " " %) rows)
-                    column (interpose-str "\n" rows)
-                    tempfile (temporary-file-name)]
-                (spit tempfile column)
-                [runtime tempfile]))
-
-            outfile (io/file outdir (str plot-number ".png"))
-            plotrange (str "[][" plot-min ":" plot-max "]")
-
-            plotlines
-            (for [[runtime tempfile] tempfiles]
-              (str "\"" tempfile
-                   "\" using 1:3:xtic(2) title '" (name runtime) "'"
-                   " with linespoints"))
-
-            plotline (str "plot " plotrange (interpose-str ", " plotlines) "\n")
-            command (str
-                     "set title '" title "'\n"
-                     "set terminal png\n"
-                     "set grid\n"
-                     "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
-                     "set ylabel \"msecs\"\n"
-                     "set output \"" outfile "\"\n"
-                     plotline)]
-        
-        (let [notes (sh/sh *gnuplot-path* :in command)
-              err (string/trim-newline (:err notes))]
-          (when (not (empty? err))
-            (println err)))
-
-        (doseq [[_ tempfile] tempfiles]
-          (io/delete-file tempfile))
-        
-        {:file outfile
-         :title title
-         :number plot-number}))))
+      
+    (concat
+     [ ;; the compile time results
+      (plot-column ["Compile Time" ctime] [:compile-time-secs] revisions outdir
+                   :ylabel "secs" :plot-min-max 20)
+      (plot-column ["Gzipped Size" gzipped] [:gzipped-size-bytes] revisions outdir
+                   :ylabel "bytes" :plot-min 26000)
+      ]
+       
+     ;; plot the benchmark results
+     (for [labeled-column labeled-columns]
+       (plot-column labeled-column *runtimes* revisions outdir)))))
 
 (defn plot-gallery [data outdir]
   (let [results (plot-data data outdir)
