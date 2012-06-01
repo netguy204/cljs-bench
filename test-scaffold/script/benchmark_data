@@ -3,7 +3,7 @@ mkdir -p out
 
 # time a basic compile (excluding the time we spend in closure)
 
-T="$(bash bin/timed-cljsc cljs-bench)"
+T="$(bash bin/timed-cljsc cljs-bench-twitterbuzz)"
 
 rm -rf out
 mkdir -p out
@@ -11,7 +11,7 @@ bin/cljsc cljs-bench {:optimizations :advanced} > out/core-advanced-benchmark.js
 
 echo "{"
 
-echo ":compile-time-secs $T"
+echo ":compile-time-msecs $T"
 
 if [ "$V8_HOME" != "" ]; then
   echo ":v8 ["
@@ -33,8 +33,11 @@ if [ "$JSC_HOME" != "" ]; then
   echo "]"
 fi
 
+# compile our copy of twitterbuzz
+bin/cljsc cljs-bench-twitterbuzz {:optimizations :advanced} > out/twitterbuzz.js
+
 # get the code size in bytes after gzip
-FILENAME=out/core-advanced-benchmark.js
+FILENAME=out/twitterbuzz.js
 gzip $FILENAME
 FILESIZE=$(stat -f %z "$FILENAME.gz")
 

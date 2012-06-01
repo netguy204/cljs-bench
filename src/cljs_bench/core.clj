@@ -2,7 +2,8 @@
   (:use [hiccup.core :only [html]])
   (:require [clojure.java.shell :as sh]
             [clojure.java.io :as io]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [cljs-bench.baseline :as baseline]))
 
 (def ^:dynamic *v8-home* "/usr/local/Cellar/v8/3.9.24/bin/")
 (def ^:dynamic *spidermonkey-home* "/Users/btaylor/local")
@@ -130,16 +131,79 @@
 (defn- read-data [file]
   (read (java.io.PushbackReader. (io/reader file))))
 
-(defn- merge-data [output in1 in2]
-  (let [data (concat (read-data in1) (read-data in2))]
-    (spit output (pr-str data))))
+(defn- find-test [runtime-result target-measurement]
+  (let [extractor (juxt :bindings :expr)
+        target (extractor target-measurement)
+        matcher #(= target (extractor %))]
+   (loop [result runtime-result]
+     (if-let [item (first result)]
+       (if (matcher item)
+         item
+         (recur (rest result)))))))
+
+(defn- merge-runtime-results [news olds]
+  (for [new news]
+    (if-let [old (find-test olds new)]
+      ;; we can merge
+      (let [old-msecs (:elapsed-msecs old)
+            new-msecs (:elapsed-msecs new)]
+        (if (or (nil? old-msecs) (nil? new-msecs))
+          new
+          (conj new {:elapsed-msecs (min old-msecs new-msecs)})))
+
+      ;; nothing to merge with
+      new)))
+
+(defn- merge-data [new-data old-data]
+  (let [new-revisions-set (into #{} (map :revision new-data))
+        old-data-map (into {} (map #(vector (:revision %) (:result %)) old-data))]
+
+    (concat
+     (for [new-result new-data]
+       {:revision (:revision new-result)
+        
+        :result
+        (if-let [old-result (old-data-map (:revision new-result))]
+          ;; try to merge all that we can
+           
+          { ;; currently, the input that we're checking the size of is
+           ;; variable so we can only take the new side
+           :compile-time-msecs
+           (get-in new-result [:result :compile-time-msecs])
+           
+           ;; file size is a function of our benchmarks so we
+           ;; always take new
+           :gzipped-size-bytes
+           (get-in new-result [:result :gzipped-size-bytes])
+           
+           :v8 (merge-runtime-results (get-in new-result [:result :v8]) (:v8 old-result))
+           :spidermonkey (merge-runtime-results (get-in new-result [:result :spidermonkey])
+                                                (:spidermonkey old-result))
+           :javascriptcore (merge-runtime-results (get-in new-result [:result :javascriptcore])
+                                                  (:javascriptcore old-result))
+           }
+          ;; nothing to merge
+          (:result new-result))
+        })
+     
+     ;; pull in anything from the old results that we don't have
+     ;; in the new at all
+     (drop-while #(new-revisions-set (:revision %)) old-data)
+     
+     )))
+
+(defn- runtime-benchmark-name [runtime-datum]
+  (str (pr-str (:bindings runtime-datum)) " "
+       (pr-str (:expr runtime-datum)) " "
+       (:iterations runtime-datum) " iters"))
+
+(defn- runtime-benchmark-names [runtime-data]
+  (map runtime-benchmark-name runtime-data))
 
 (defn- benchmark-names [data runtime]
   (let [revision (first data)
         tests (get-in revision [:result runtime])]
-    (cons "revision" (map #(str (pr-str (:bindings %)) " "
-                                (pr-str (:expr %)) " "
-                                (:iterations %) " iters") tests))))
+    (cons "revision" (runtime-benchmark-names tests))))
 
 (defn- tabulate-data [data]
   (for [revision data]
@@ -166,14 +230,17 @@
       (map #(interpose-str "," (map runtime %)) table))))
 
 (defn- standard-deviation [values]
-  (let [sum (reduce + values)
-        n (count values)
-        mean (/ sum n)
-        sumsqr (reduce (fn [result val]
-                         (+ result (* val val)))
-                       0 values)]
-    (Math/sqrt (- (/ sumsqr n)
-                  (* mean mean)))))
+  (let [n (count values)]
+    (if (> n 0)
+      (let [sum (reduce + values)
+            n (count values)
+            mean (/ sum n)
+            sumsqr (reduce (fn [result val]
+                             (+ result (* val val)))
+                           0 values)]
+        (Math/sqrt (- (/ sumsqr n)
+                      (* mean mean))))
+      0)))
 
 (defn- ->coll [val]
   (if (coll? val)
@@ -189,13 +256,10 @@
   (let [[title column] labeled-column
         plot-number @*plot-number*
         filtered-column (filter identity (mapcat vals column))
-        min-column-time (reduce min filtered-column)
-        max-column-time (reduce max filtered-column)
+        min-column-time (reduce min plot-min filtered-column)
+        max-column-time (reduce max plot-min-max filtered-column)
         column-range (- max-column-time min-column-time)
-        plot-max (max plot-min-max
-                      (min max-column-time
-                           (+ min-column-time
-                              (* 3 (standard-deviation filtered-column)))))
+        plot-max (max plot-min-max max-column-time)
         tempfiles
         (for [runtime column-keys]
           (let [rows (map vector
@@ -233,7 +297,9 @@
     ;; report any plot errors
     (when (not (empty? err))
       (println "while generating " plot-number "\n"
-               err))
+               err)
+      (println (map vector revisions column)))
+    
 
     ;; increment the plot number
     (swap! *plot-number* inc)
@@ -249,30 +315,41 @@
 (defn plot-data [data outdir]
   (reset! *plot-number* 0)
   (let [results (map :result data)
-        ctime (map (fn [result] {:compile-time-secs (:compile-time-secs result)}) results)        
-        gzipped (map (fn [result] {:gzipped-size-kbytes (/ (float (:gzipped-size-bytes result))
-                                                           1024)}) results)
+        ctime (map (fn [result] {:compile-time-msecs (:compile-time-msecs result)}) results)        
+        gzipped (map (fn [result] {:gzipped-size-kbytes (if-let [bytes (:gzipped-size-bytes result)]
+                                                          (/ (float bytes)
+                                                             1024))}) results)
         labels (rest (benchmark-names data :v8))
         data (transpose (tabulate-data data))
         revisions (map #(apply str (take 5 %)) (first data))
         columns (rest data)
-        labeled-columns (map vector labels columns)]
+        labeled-columns (map vector labels columns)
+
+        baseline-data (baseline/baseline-benchmark)]
       
     ;; set up for output
     (io/make-parents (io/file outdir))
     (.mkdir (io/file outdir))
-      
+    
     (concat
      [ ;; the compile time results
-      (plot-column ["Compile Time" ctime] [:compile-time-secs] revisions outdir
-                   :ylabel "secs" :plot-min-max 20)
-      (plot-column ["Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
-                   :ylabel "kilobytes" :plot-min 20 :plot-min-max 40)
+      (plot-column ["TwitterBuzz Compile Time" ctime] [:compile-time-msecs] revisions outdir
+                   :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
+      (plot-column ["TwitterBuzz Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
+                   :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)
       ]
        
      ;; plot the benchmark results
      (for [labeled-column labeled-columns]
-       (plot-column labeled-column *runtimes* revisions outdir)))))
+       (let [label (first labeled-column)
+             column (second labeled-column)
+             baseline-match (first (filter #(= (runtime-benchmark-name %) label) baseline-data))]
+         (if baseline-match
+           (let [new-column (map #(conj % {:jvm-clojure14-msecs (:elapsed-msecs baseline-match)})
+                                 column)]
+             (plot-column [label new-column] (conj *runtimes* :jvm-clojure14-msecs) revisions outdir))
+           
+           (plot-column labeled-column *runtimes* revisions outdir)))))))
 
 (defn plot-gallery [data outdir]
   (let [results (plot-data data outdir)
@@ -328,7 +405,7 @@
         (benchmark-revisions dir results-next current-sha1 last-sha1)
         
         (if (.exists (io/file results))
-          (merge-data results results-next results)
+          (spit results (pr-str (merge-data (read-data results-next) (read-data results))))
           (copy-tree results-next results))
         
         (plot-gallery (read-data results) output-dir)
