@@ -3,9 +3,7 @@ mkdir -p out
 
 # time a basic compile (excluding the time we spend in closure)
 
-T="$(date +%s)"
-bin/cljsc cljs-bench > out/core-benchmark.js
-T="$(($(date +%s)-T))"
+T="$(bash bin/timed-cljsc cljs-bench)"
 
 rm -rf out
 mkdir -p out

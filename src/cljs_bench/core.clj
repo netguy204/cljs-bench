@@ -250,7 +250,8 @@
   (reset! *plot-number* 0)
   (let [results (map :result data)
         ctime (map (fn [result] {:compile-time-secs (:compile-time-secs result)}) results)        
-        gzipped (map (fn [result] {:gzipped-size-bytes (:gzipped-size-bytes result)}) results)
+        gzipped (map (fn [result] {:gzipped-size-kbytes (/ (float (:gzipped-size-bytes result))
+                                                           1024)}) results)
         labels (rest (benchmark-names data :v8))
         data (transpose (tabulate-data data))
         revisions (map #(apply str (take 5 %)) (first data))
@@ -265,8 +266,8 @@
      [ ;; the compile time results
       (plot-column ["Compile Time" ctime] [:compile-time-secs] revisions outdir
                    :ylabel "secs" :plot-min-max 20)
-      (plot-column ["Gzipped Size" gzipped] [:gzipped-size-bytes] revisions outdir
-                   :ylabel "bytes" :plot-min 26000)
+      (plot-column ["Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
+                   :ylabel "kilobytes" :plot-min 20 :plot-min-max 40)
       ]
        
      ;; plot the benchmark results
