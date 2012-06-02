@@ -166,13 +166,14 @@
         (if-let [old-result (old-data-map (:revision new-result))]
           ;; try to merge all that we can
            
-          { ;; currently, the input that we're checking the size of is
-           ;; variable so we can only take the new side
+          {;; we're always compiling the same thing so we can do a min
+           ;; here
            :compile-time-msecs
-           (get-in new-result [:result :compile-time-msecs])
+           (min (get-in new-result [:result :compile-time-msecs])
+                (:compile-time-msecs old-result))
            
-           ;; file size is a function of our benchmarks so we
-           ;; always take new
+           ;; file size should always be constant given a revision so
+           ;; we take the new side
            :gzipped-size-bytes
            (get-in new-result [:result :gzipped-size-bytes])
            
@@ -284,7 +285,7 @@
         plotline (str "plot " plotrange (interpose-str ", " plotlines) "\n")
         command (str
                  "set title '" title "'\n"
-                 "set terminal png\n"
+                 "set terminal png size 800,600\n"
                  "set grid\n"
                  "set xtics border in rotate by -90 offset character 0, -2.1, 0\n"
                  "set ylabel \"" ylabel "\"\n"

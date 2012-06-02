@@ -58,6 +58,26 @@
 (simple-benchmark-data [coll (Foo. 1 2)] (:bar coll) 1000000)
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (assoc coll :baz 3) 100000)
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (assoc coll :foo 2) 100000)
+
+(simple-benchmark-data [key :f0] (hash key) 100000)
+(simple-benchmark-data [coll {:foo 1 :bar 2}]
+  (loop [i 0 m coll]
+    (if (< i 100000)
+      (recur (inc i) (assoc m :foo 2))
+      m))
+  1)
+
+(def pmap (into cljs.core.PersistentHashMap/EMPTY
+                [[:a 0] [:b 1] [:c 2] [:d 3] [:e 4] [:f 5] [:g 6] [:h 7]
+                 [:i 8] [:j 9] [:k 10] [:l 11] [:m 12] [:n 13] [:o 14] [:p 15]
+                 [:q 16] [:r 17] [:s 18] [:t 19] [:u 20] [:v 21] [:w 22] [:x 23]
+                 [:y 24] [:z 25] [:a0 26] [:b0 27] [:c0 28] [:d0 29] [:e0 30] [:f0 31]]))
+
+(simple-benchmark-data [coll pmap] (:f0 coll) 100000)
+(simple-benchmark-data [coll pmap] (get coll :f0) 100000)
+(simple-benchmark-data [coll pmap] (-lookup coll :f0 nil) 100000)
+(simple-benchmark-data [coll pmap] (assoc coll :g0 32) 100000)
+
 (println)
 
 (simple-benchmark-data [coll (range 500000)] (reduce + coll) 1)
