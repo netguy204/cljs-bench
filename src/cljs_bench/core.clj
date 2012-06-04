@@ -177,9 +177,7 @@
      
      ;; pull in anything from the old results that we don't have
      ;; in the new at all
-     (drop-while #(new-revisions-set (:revision %)) old-data)
-     
-     )))
+     (drop-while #(new-revisions-set (:revision %)) old-data))))
 
 (defn- runtime-benchmark-name [runtime-datum]
   (str (pr-str (:bindings runtime-datum)) " "
@@ -248,8 +246,8 @@
         
         plotlines
         (for [[runtime tempfile] tempfiles]
-          (str "\"" tempfile
-               "\" using 1:3:xtic(2) title '" (name runtime) "'"
+          (str "\"" tempfile "\""
+               " using 1:3:xtic(2) title '" (name runtime) "'"
                " with linespoints"))
         
         plotline (str "plot " plotrange (interpose-str ", " plotlines) "\n")
@@ -286,10 +284,16 @@
 (defn plot-data [data outdir]
   (binding [*plot-number* (atom 0)]
     (let [results (map :result data)
-          ctime (map (fn [result] {:compile-time-msecs (:compile-time-msecs result)}) results)        
-          gzipped (map (fn [result] {:gzipped-size-kbytes (if-let [bytes (:gzipped-size-bytes result)]
-                                                            (/ (float bytes)
-                                                               1024))}) results)
+          ctime (map (fn [result]
+                       {:compile-time-msecs
+                        (:compile-time-msecs result)}) results)
+          
+          gzipped (map (fn [result]
+                         {:gzipped-size-kbytes
+                          (if-let [bytes (:gzipped-size-bytes result)]
+                            (/ (float bytes)
+                               1024))}) results)
+          
           labels (rest (benchmark-names data :v8))
           data (transpose (tabulate-data data))
           revisions (map #(apply str (take 5 %)) (first data))
@@ -303,12 +307,12 @@
       (.mkdir (io/file outdir))
       
       (concat
-       [ ;; the compile time results
-        (plot-column ["TwitterBuzz Compile Time" ctime] [:compile-time-msecs] revisions outdir
+       [(plot-column ["TwitterBuzz Compile Time" ctime]
+                     [:compile-time-msecs] revisions outdir
                      :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
-        (plot-column ["TwitterBuzz Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
-                     :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)
-        ]
+        (plot-column ["TwitterBuzz Gzipped Size" gzipped]
+                     [:gzipped-size-kbytes] revisions outdir
+                     :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)]
        
        ;; plot the benchmark results
        (for [labeled-column labeled-columns]
