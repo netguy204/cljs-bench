@@ -7,9 +7,20 @@ plots. See http://50ply.com/cljs-bench/ for an example.
 
 ## Usage
 
-Assumes you already have a working Clojurescript that was cloned from
-git. Create a file named last-head inside your copy of cljs-bench and
-put the SHA1 of the earliest version you care about in this file.
+Make sure you have at least one of these environment variables
+defined:
+
+# V8_HOME (location of the d8 binary)
+# SPIDERMONKEY_HOME (location of the js binary)
+# JSC_HOME (location of the jsc binary)
+
+Also, make sure you have a recent version of Gnuplot on your PATH.
+
+This assumes you already have a working Clojurescript that was cloned
+from git. Make sure you've run the clojurescript bootstrap script
+(script/bootstrap) to download Clojure and the Closure
+compiler. Create a file named last-head inside your copy of cljs-bench
+and put the SHA1 of the earliest version you care about in this file.
 
 Then, if using leiningen:
 
@@ -24,6 +35,6 @@ into your local clojurescript repo and run the above command again.
 
 ## License
 
-Copyright (C) 2012 FIXME
+Copyright (C) 2012 
 
 Distributed under the Eclipse Public License, the same as Clojure.

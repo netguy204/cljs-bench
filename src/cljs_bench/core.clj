@@ -5,19 +5,11 @@
             [clojure.string :as string]
             [cljs-bench.baseline :as baseline]))
 
-(def ^:dynamic *v8-home* "/usr/local/Cellar/v8/3.9.24/bin/")
-(def ^:dynamic *spidermonkey-home* "/Users/btaylor/local")
-(def ^:dynamic *jsc-home* "/Applications/WebKit.app/Contents/Frameworks/10.7/JavaScriptCore.framework/Resources/")
-(def ^:dynamic *jsc-libs* "/Applications/WebKit.app/Contents/Frameworks/10.7/")
-
-(def ^:dynamic *gnuplot-path*
-  "/Applications/Gnuplot.app/Contents/Resources/bin/gnuplot")
-
 (def ^:dynamic *delete-tempdir* true)
 
 (def ^:dynamic *runtimes* [:v8 :spidermonkey :javascriptcore])
 
-;;; from clojure-script-one
+;;; stolen from clojure-script-one's git bootstrap code
 
 (defn- exec
   "Run a command, throwing an exception if it fails, returning the
@@ -46,7 +38,7 @@
   (println "Running git checkout " commit " in " (str dir))
   (exec "git" "checkout" commit :dir dir))
 
-;;; non stolen stuff :-p
+;;; end stolen code
 
 (defn- git-revisions-between [dir start end]
   (string/split-lines (:out (exec "git" "rev-list" start (str "^" end) :dir dir))))
@@ -59,7 +51,7 @@
     (assert (.delete temp))
     temp))
 
-(defn- copy-tree 
+(defn- copy-tree
   [src dest]
   (if (.isDirectory src)
     (doseq [file (.list src)]
@@ -91,10 +83,6 @@
         result (exec "bash" "script/benchmark_data"
                      :dir dir
                      :env (assoc (current-environment)
-                            "V8_HOME" *v8-home*
-                            "SPIDERMONKEY_HOME" *spidermonkey-home*
-                            "JSC_HOME" *jsc-home*
-                            "DYLD_FRAMEWORK_PATH" *jsc-libs*
                             "CLOJURESCRIPT_HOME" ""))
         err (string/trim-newline (:err result))
         reader (string-reader (:out result))]
@@ -230,25 +218,7 @@
     (interpose-str "\n"
       (map #(interpose-str "," (map runtime %)) table))))
 
-(defn- standard-deviation [values]
-  (let [n (count values)]
-    (if (> n 0)
-      (let [sum (reduce + values)
-            n (count values)
-            mean (/ sum n)
-            sumsqr (reduce (fn [result val]
-                             (+ result (* val val)))
-                           0 values)]
-        (Math/sqrt (- (/ sumsqr n)
-                      (* mean mean))))
-      0)))
-
-(defn- ->coll [val]
-  (if (coll? val)
-    val
-    [val]))
-
-(def ^:dynamic *plot-number* (atom nil))
+(def ^:dynamic *plot-number* nil)
 
 (defn plot-column [labeled-column column-keys revisions outdir
                    & {:keys [ylabel plot-min plot-min-max]
@@ -292,7 +262,7 @@
                  "set output \"" outfile "\"\n"
                  plotline)
         
-        notes (sh/sh *gnuplot-path* :in command)
+        notes (sh/sh "gnuplot" :in command)
         err (string/trim-newline (:err notes))]
 
     ;; report any plot errors
@@ -314,43 +284,43 @@
 
 
 (defn plot-data [data outdir]
-  (reset! *plot-number* 0)
-  (let [results (map :result data)
-        ctime (map (fn [result] {:compile-time-msecs (:compile-time-msecs result)}) results)        
-        gzipped (map (fn [result] {:gzipped-size-kbytes (if-let [bytes (:gzipped-size-bytes result)]
-                                                          (/ (float bytes)
-                                                             1024))}) results)
-        labels (rest (benchmark-names data :v8))
-        data (transpose (tabulate-data data))
-        revisions (map #(apply str (take 5 %)) (first data))
-        columns (rest data)
-        labeled-columns (map vector labels columns)
-
-        baseline-data (baseline/baseline-benchmark)]
+  (binding [*plot-number* (atom 0)]
+    (let [results (map :result data)
+          ctime (map (fn [result] {:compile-time-msecs (:compile-time-msecs result)}) results)        
+          gzipped (map (fn [result] {:gzipped-size-kbytes (if-let [bytes (:gzipped-size-bytes result)]
+                                                            (/ (float bytes)
+                                                               1024))}) results)
+          labels (rest (benchmark-names data :v8))
+          data (transpose (tabulate-data data))
+          revisions (map #(apply str (take 5 %)) (first data))
+          columns (rest data)
+          labeled-columns (map vector labels columns)
+          
+          baseline-data (baseline/baseline-benchmark)]
       
-    ;; set up for output
-    (io/make-parents (io/file outdir))
-    (.mkdir (io/file outdir))
-    
-    (concat
-     [ ;; the compile time results
-      (plot-column ["TwitterBuzz Compile Time" ctime] [:compile-time-msecs] revisions outdir
-                   :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
-      (plot-column ["TwitterBuzz Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
-                   :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)
-      ]
+      ;; set up for output
+      (io/make-parents (io/file outdir))
+      (.mkdir (io/file outdir))
+      
+      (concat
+       [ ;; the compile time results
+        (plot-column ["TwitterBuzz Compile Time" ctime] [:compile-time-msecs] revisions outdir
+                     :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
+        (plot-column ["TwitterBuzz Gzipped Size" gzipped] [:gzipped-size-kbytes] revisions outdir
+                     :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)
+        ]
        
-     ;; plot the benchmark results
-     (for [labeled-column labeled-columns]
-       (let [label (first labeled-column)
-             column (second labeled-column)
-             baseline-match (first (filter #(= (runtime-benchmark-name %) label) baseline-data))]
-         (if baseline-match
-           (let [new-column (map #(conj % {:jvm-clojure14-msecs (:elapsed-msecs baseline-match)})
-                                 column)]
-             (plot-column [label new-column] (conj *runtimes* :jvm-clojure14-msecs) revisions outdir))
-           
-           (plot-column labeled-column *runtimes* revisions outdir)))))))
+       ;; plot the benchmark results
+       (for [labeled-column labeled-columns]
+         (let [label (first labeled-column)
+               column (second labeled-column)
+               baseline-match (first (filter #(= (runtime-benchmark-name %) label) baseline-data))]
+           (if baseline-match
+             (let [new-column (map #(conj % {:jvm-clojure14-msecs (:elapsed-msecs baseline-match)})
+                                   column)]
+               (plot-column [label new-column] (conj *runtimes* :jvm-clojure14-msecs) revisions outdir))
+             
+             (plot-column labeled-column *runtimes* revisions outdir))))))))
 
 (defn plot-gallery [data outdir]
   (let [results (plot-data data outdir)
