@@ -216,7 +216,7 @@
     (interpose-str "\n"
       (map #(interpose-str "," (map runtime %)) table))))
 
-(def ^:dynamic *plot-number* nil)
+(def ^:dynamic *plot-number* (atom nil))
 
 (defn plot-column [labeled-column column-keys revisions outdir
                    & {:keys [ylabel plot-min plot-min-max]
@@ -282,49 +282,49 @@
 
 
 (defn plot-data [data outdir]
-  (binding [*plot-number* (atom 0)]
-    (let [results (map :result data)
-          ctime (map (fn [result]
-                       {:compile-time-msecs
-                        (:compile-time-msecs result)}) results)
+  (reset! *plot-number* 0)
+  (let [results (map :result data)
+        ctime (map (fn [result]
+                     {:compile-time-msecs
+                      (:compile-time-msecs result)}) results)
           
-          gzipped (map (fn [result]
-                         {:gzipped-size-kbytes
-                          (if-let [bytes (:gzipped-size-bytes result)]
-                            (/ (float bytes)
-                               1024))}) results)
+        gzipped (map (fn [result]
+                       {:gzipped-size-kbytes
+                        (if-let [bytes (:gzipped-size-bytes result)]
+                          (/ (float bytes)
+                             1024))}) results)
           
-          labels (rest (benchmark-names data :v8))
-          data (transpose (tabulate-data data))
-          revisions (map #(apply str (take 5 %)) (first data))
-          columns (rest data)
-          labeled-columns (map vector labels columns)
+        labels (rest (benchmark-names data :v8))
+        data (transpose (tabulate-data data))
+        revisions (map #(apply str (take 5 %)) (first data))
+        columns (rest data)
+        labeled-columns (map vector labels columns)
           
-          baseline-data (baseline/baseline-benchmark)]
+        baseline-data (baseline/baseline-benchmark)]
       
-      ;; set up for output
-      (io/make-parents (io/file outdir))
-      (.mkdir (io/file outdir))
+    ;; set up for output
+    (io/make-parents (io/file outdir))
+    (.mkdir (io/file outdir))
       
-      (concat
-       [(plot-column ["TwitterBuzz Compile Time" ctime]
-                     [:compile-time-msecs] revisions outdir
-                     :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
-        (plot-column ["TwitterBuzz Gzipped Size" gzipped]
-                     [:gzipped-size-kbytes] revisions outdir
-                     :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)]
+    (concat
+     [(plot-column ["TwitterBuzz Compile Time" ctime]
+                   [:compile-time-msecs] revisions outdir
+                   :ylabel "msecs" :plot-min 3000 :plot-min-max 8000)
+      (plot-column ["TwitterBuzz Gzipped Size" gzipped]
+                   [:gzipped-size-kbytes] revisions outdir
+                   :ylabel "kilobytes" :plot-min 40 :plot-min-max 60)]
        
-       ;; plot the benchmark results
-       (for [labeled-column labeled-columns]
-         (let [label (first labeled-column)
-               column (second labeled-column)
-               baseline-match (first (filter #(= (runtime-benchmark-name %) label) baseline-data))]
-           (if baseline-match
-             (let [new-column (map #(conj % {:jvm-clojure14-msecs (:elapsed-msecs baseline-match)})
-                                   column)]
-               (plot-column [label new-column] (conj *runtimes* :jvm-clojure14-msecs) revisions outdir))
+     ;; plot the benchmark results
+     (for [labeled-column labeled-columns]
+       (let [label (first labeled-column)
+             column (second labeled-column)
+             baseline-match (first (filter #(= (runtime-benchmark-name %) label) baseline-data))]
+         (if baseline-match
+           (let [new-column (map #(conj % {:jvm-clojure14-msecs (:elapsed-msecs baseline-match)})
+                                 column)]
+             (plot-column [label new-column] (conj *runtimes* :jvm-clojure14-msecs) revisions outdir))
              
-             (plot-column labeled-column *runtimes* revisions outdir))))))))
+           (plot-column labeled-column *runtimes* revisions outdir)))))))
 
 (defn plot-gallery [data outdir]
   (let [results (plot-data data outdir)
@@ -372,17 +372,14 @@
         results-next (io/file "results-next.clj")
         results (io/file "results.clj")]
 
-    (if (= last-sha1 current-sha1)
-      (println "no changes since " last-sha1)
-      
-      (do
-        (println "benchmarking between " last-sha1 " and " current-sha1)
-        (benchmark-revisions dir results-next current-sha1 last-sha1)
-        
-        (if (.exists (io/file results))
-          (spit results (pr-str (merge-data (read-data results-next) (read-data results))))
-          (copy-tree results-next results))
-        
-        (plot-gallery (read-data results) output-dir)
-        (spit last-head current-sha1)))))
+    (when-not (= last-sha1 current-sha1)
+      (println "benchmarking between " last-sha1 " and " current-sha1)
+      (benchmark-revisions dir results-next current-sha1 last-sha1)
+      (if (.exists (io/file results))
+        (spit results (pr-str (merge-data (read-data results-next) (read-data results))))
+        (copy-tree results-next results)))
+    
+    (println "building plots")
+    (plot-gallery (read-data results) output-dir)
+    (spit last-head current-sha1)))
 

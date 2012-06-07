@@ -36,6 +36,8 @@
 (simple-benchmark-data [] [] 1000000)
 (simple-benchmark-data [] [1 2 3] 1000000)
 (simple-benchmark-data [coll [1 2 3]] (transient coll) 100000)
+(simple-benchmark-data [coll [1 2 3]] (nth coll 0) 1000000)
+(simple-benchmark-data [coll [1 2 3]] (-nth coll 0) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (conj coll 4) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (-conj coll 4) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (seq coll) 1000000)
@@ -73,12 +75,14 @@
                  [:q 16] [:r 17] [:s 18] [:t 19] [:u 20] [:v 21] [:w 22] [:x 23]
                  [:y 24] [:z 25] [:a0 26] [:b0 27] [:c0 28] [:d0 29] [:e0 30] [:f0 31]]))
 
-(simple-benchmark-data [coll pmap] (:f0 coll) 100000)
-(simple-benchmark-data [coll pmap] (get coll :f0) 100000)
-(simple-benchmark-data [coll pmap] (-lookup coll :f0 nil) 100000)
-(simple-benchmark-data [coll pmap] (assoc coll :g0 32) 100000)
+(simple-benchmark-data [coll pmap] (:f0 coll) 1000000)
+(simple-benchmark-data [coll pmap] (get coll :f0) 1000000)
+(simple-benchmark-data [coll pmap] (-lookup coll :f0 nil) 1000000)
+(simple-benchmark-data [coll pmap] (assoc coll :g0 32) 1000000)
+(simple-benchmark-data [coll cljs.core.PersistentHashMap/EMPTY] (assoc coll :f0 1) 1000000)
 
 (println)
+
 
 (simple-benchmark-data [coll (range 500000)] (reduce + coll) 1)
 (println)
