@@ -16,8 +16,6 @@ echo ":compile-time-msecs $T"
 if [ "$V8_HOME" != "" ]; then
   echo ":v8 ["
   ${V8_HOME}/d8 out/core-advanced-benchmark.js
-  # TODO: figure out path problem when not in advanced mode
-  # ${V8_HOME}/d8 out/core-benchmark.js
   echo "]"
 fi
 

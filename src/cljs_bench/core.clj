@@ -280,10 +280,10 @@
      :title title
      :number (dec plot-number)}))
 
-
 (defn plot-data [data outdir]
   (reset! *plot-number* 0)
-  (let [results (map :result data)
+  (let [data (take 70 data)
+        results (map :result data)
         ctime (map (fn [result]
                      {:compile-time-msecs
                       (:compile-time-msecs result)}) results)

@@ -81,6 +81,10 @@
 (simple-benchmark-data [coll pmap] (assoc coll :g0 32) 1000000)
 (simple-benchmark-data [coll cljs.core.PersistentHashMap/EMPTY] (assoc coll :f0 1) 1000000)
 
+(simple-benchmark-data [] #{} 100000)
+(simple-benchmark-data [] #{1 2 3} 100000)
+(simple-benchmark-data [coll #{1 2 3}] (conj coll 4) 100000)
+
 (println)
 
 
