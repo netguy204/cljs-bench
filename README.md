@@ -4,7 +4,7 @@ cljs-bench
 Track how the performance of Clojurescript changes with each commit
 to the repository.
 
-[http://50ply.com/cljs-bench/][See the plots]
+[http://50ply.com/cljs-bench/](See the plots)
 
 Usage
 -----
