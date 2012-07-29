@@ -6,14 +6,15 @@ to the repository.
 
 [http://50ply.com/cljs-bench/][See the plots]
 
-==Usage==
+Usage
+-----
 
 Make sure you have at least one of these environment variables
 defined:
 
-# V8_HOME (location of the d8 binary)
-# SPIDERMONKEY_HOME (location of the js binary)
-# JSC_HOME (location of the jsc binary)
+* V8_HOME (location of the d8 binary)
+* SPIDERMONKEY_HOME (location of the js binary)
+* JSC_HOME (location of the jsc binary)
 
 Also, make sure you have a recent version of Gnuplot on your PATH.
 
@@ -34,7 +35,8 @@ done it will update the last-head file to point at the current
 location of origin/master. To perform incremental updates, just fetch
 into your local clojurescript repo and run the above command again.
 
-==License==
+License
+-------
 
 Copyright (C) 2012 Brian Taylor
 
