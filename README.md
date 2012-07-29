@@ -1,11 +1,12 @@
-# cljs-bench
+cljs-bench
+==========
 
-Runs the benchmarks in
-test-scaffold/cljs-bench/cljs/benchmark_runner.cljs against checkouts
-of Clojurescript and summarizes the results as an html report with
-plots. See http://50ply.com/cljs-bench/ for an example.
+Track how the performance of Clojurescript changes with each commit
+to the repository.
 
-## Usage
+[http://50ply.com/cljs-bench/][See the plots]
+
+==Usage==
 
 Make sure you have at least one of these environment variables
 defined:
@@ -33,8 +34,8 @@ done it will update the last-head file to point at the current
 location of origin/master. To perform incremental updates, just fetch
 into your local clojurescript repo and run the above command again.
 
-## License
+==License==
 
-Copyright (C) 2012 
+Copyright (C) 2012 Brian Taylor
 
 Distributed under the Eclipse Public License, the same as Clojure.

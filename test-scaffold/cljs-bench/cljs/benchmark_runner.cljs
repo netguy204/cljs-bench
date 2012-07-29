@@ -23,7 +23,6 @@
 
 (simple-benchmark-data [coll (list 1 2 3)] (satisfies? ISeq coll) 1000000)
 (simple-benchmark-data [coll [1 2 3]] (satisfies? ISeq coll) 1000000)
-(println)
 
 (simple-benchmark-data [coll (list 1 2 3)] (first coll) 1000000)
 (simple-benchmark-data [coll (list 1 2 3)] (-first coll) 1000000)
@@ -31,7 +30,6 @@
 (simple-benchmark-data [coll (list 1 2 3)] (-rest coll) 1000000)
 (simple-benchmark-data [] (list) 1000000)
 (simple-benchmark-data [] (list 1 2 3) 1000000)
-(println)
 
 (simple-benchmark-data [] [] 1000000)
 (simple-benchmark-data [] [1 2 3] 1000000)
@@ -46,12 +44,10 @@
 (simple-benchmark-data [coll (seq [1 2 3])] (rest coll) 1000000)
 (simple-benchmark-data [coll (seq [1 2 3])] (-rest coll) 1000000)
 (simple-benchmark-data [coll (seq [1 2 3])] (next coll) 1000000)
-(println)
 
 (simple-benchmark-data [coll (take 100000 (iterate inc 0))] (reduce + 0 coll) 1)
 (simple-benchmark-data [coll (range 1000000)] (reduce + 0 coll) 1)
 (simple-benchmark-data [coll (into [] (range 1000000))] (reduce + 0 coll) 1)
-(println)
 
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (get coll :foo) 1000000)
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (-lookup coll :foo nil) 1000000)
@@ -85,17 +81,11 @@
 (simple-benchmark-data [] #{1 2 3} 100000)
 (simple-benchmark-data [coll #{1 2 3}] (conj coll 4) 100000)
 
-(println)
-
-
 (simple-benchmark-data [coll (range 500000)] (reduce + coll) 1)
-(println)
 
 (simple-benchmark-data [s "{:foo [1 2 3]}"] (reader/read-string s) 1000)
-(println)
 
 (simple-benchmark-data [r (range 1000000)] (last r) 1)
-(println)
 
 (defn ints-seq
   ([n] (ints-seq 0 n))
@@ -106,6 +96,3 @@
 (def r (ints-seq 1000000))
 (simple-benchmark-data [r r] (last r) 1)
 (simple-benchmark-data [r r] (last r) 1)
-(println)
-
-(println "\n")
