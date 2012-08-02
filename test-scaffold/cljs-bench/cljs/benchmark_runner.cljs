@@ -85,6 +85,8 @@
 
 (simple-benchmark-data [s "{:foo [1 2 3]}"] (reader/read-string s) 1000)
 
+(simple-benchmark-data [m {:foo [1 2 {:bar {3 :a 4 #{:b :c :d :e}}}]}] (pr-str m) 1000)
+
 (simple-benchmark-data [r (range 1000000)] (last r) 1)
 
 (defn ints-seq
