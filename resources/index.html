@@ -1,0 +1,153 @@
+<html>
+<head>
+<style>
+body {
+background:url("background.png");
+}
+
+h1 {
+text-align:center;
+background:#ccc;
+border-top-style:solid;
+}
+
+#body1 {
+background: #eee;
+width: 802px;
+margin: 0 auto;
+padding: 20px;
+border-left-style: solid;
+border-left-color: #fff;
+border-left-width: 1px;
+border-right-style: solid;
+border-right-color: #000;
+border-right-width: 2px;
+}
+
+#logo {
+background:url("cljsbench_logo.png");
+background-repeat:repeat-x;
+height:230;
+padding:0px;
+width:802;
+}
+
+.plot img {
+border-style: solid;
+border-width: 1px;
+border-color: #ccc;
+}
+
+.plot {
+margin-bottom:10px;
+box-shadow: 0 1px 0;
+}
+
+#nav {
+padding:20px;
+height:20px;
+border-style:solid;
+border-width: 1 0;
+border-color:#aaa;
+}
+
+#nav li {
+display: inline;
+padding: 0;
+}
+
+#nav a {
+padding:10px;
+margin-right:5px;
+border-style: solid;
+border-width: 1 1 2 0;
+border-color: #fff #ccc #888 #ccc;
+background: #ccc;
+text-decoration: none;
+color: #333;
+font-weight: bold;
+-webkit-border-radius: 5px;
+-moz-border-radius: 5px;
+}
+
+#nav a:hover {
+background:#66a;
+color:#fff;
+}
+
+#plot-list li {
+display: inline-block;
+height: 50px;
+}
+
+#plot-list a {
+padding:10px;
+margin-right:5px;
+border-style: solid;
+border-width: 1 1 2 0;
+border-color: #fff #ccc #888 #ccc;
+background: #dcc;
+text-decoration: none;
+color: #333;
+font-weight: bold;
+-webkit-border-radius: 5px;
+-moz-border-radius: 5px;
+}
+
+#plot-list a:hover {
+background:#a66;
+color:#fff;
+}
+
+#plot-list {
+padding 20px;
+margin: 40px auto;
+height:auto;
+}
+
+</style>
+</head>
+
+
+<body>
+<div id="body1">
+<div id="logo"></div>
+<h1>Clojurescript Benchmark Times</h1>
+<ul id="nav">
+  <li class="static-link"><a href="http://50ply.com">50Ply Blog</a></li>
+  <li class="static-link"><a href="http://github.com/netguy204/cljs-bench">GitHub Source</a>
+  <li class="data-link"><a href="v8.csv">[v8 as CSV]</a></li>
+</ul>
+
+<ul id="plot-list">
+  <li class="plot-link"><a href="#plot-1">TwitterBuzz Compile Time</a></li>
+</ul>
+
+<div id="plots">
+<div class="plot">
+  <a name="plot-1"></a>
+  <img src="0.png" />
+</div>
+<div class="plot">
+  <a name="plot-1"></a>
+  <img src="0.png" />
+</div>
+</div>
+
+</div>
+
+<script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-27031247-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+</script>
+
+</body>
+
+</html>

@@ -1,9 +1,9 @@
 (ns cljs-bench.core
-  (:use [hiccup.core :only [html]])
   (:require [clojure.java.shell :as sh]
             [clojure.java.io :as io]
             [clojure.string :as string]
-            [cljs-bench.baseline :as baseline]))
+            [cljs-bench.baseline :as baseline]
+            [net.cgrand.enlive-html :as html]))
 
 (def ^:dynamic *delete-tempdir* true)
 
@@ -326,42 +326,47 @@
              
            (plot-column labeled-column *runtimes* revisions outdir)))))))
 
+(html/defsnippet data-link "index.html" [:.data-link]
+  [link]
+  [:a] (html/do-> (html/set-attr :href (.getName (:file link)))
+                  (html/content (str (name (:runtime link)) " Data"))))
+
+(html/defsnippet plot-link "index.html" [:.plot-link]
+  [plot]
+  [:a] (html/do-> (html/set-attr :href (str "#" (.getName (:file plot))))
+                  (html/content (:title plot))))
+
+(html/defsnippet plot-element "index.html" [:.plot]
+  [plot]
+  [:a] (html/set-attr :name (.getName (:file plot)))
+  [:img] (html/set-attr :src (.getName (:file plot))))
+
+(html/deftemplate gallery "index.html"
+  [csvs plots]
+
+  [:#nav :.data-link] (html/substitute (map data-link csvs))
+  [:#plot-list :.plot-link] (html/substitute (map plot-link plots))
+  [:#plots] (html/content (map plot-element plots)))
+
+
 (defn plot-gallery [data outdir]
   (let [results (plot-data data outdir)
-        imgs (map #(list [:a {:name (str "plot" (:number %))}]
-                         [:img {:src (.getName (:file %))}])
-                  results)
-        links (map #(vector
-                     :ul
-                     [:li
-                      [:a {:href (str "#plot" (:number %))}
-                       (str (:title %))]])
-                   results)
+        imgs results
+        links results
         results-csvs (for [runtime *runtimes*]
                        {:runtime runtime
                         :file (io/file outdir (str (name runtime)
                                                    ".csv"))}) 
-        body [:html
-              [:body
-               [:h1 "Clojurescript Benchmark Times"]
-               [:a {:href "https://github.com/netguy204/cljs-bench/blob/master/test-scaffold/cljs-bench/cljs/benchmark_runner.cljs"}
-                "[benchmark source]"]
-               [:br]
-               [:a {:href "http://github.com/netguy204/cljs-bench"}
-                "[cljs-bench source]"]
-               [:br]
-               (for [results-csv results-csvs]
-                 (list
-                  [:a {:href (.getName (:file results-csv))}
-                   "[" (name (:runtime results-csv)) " as CSV]"]
-                  [:br]))
-               links
-               imgs]]]
+        body (gallery results-csvs results)]
     
     (doseq [results-csv results-csvs]
       (spit (:file results-csv) (results->csv data (:runtime results-csv))))
+
+    ;; copy static resources
+    (doseq [res ["cljsbench_logo.png" "background.png"]]
+      (io/copy (.. (io/resource res) (openConnection) (getInputStream)) (io/file outdir res)))
     
-    (spit (io/file outdir "index.html") (html body))))
+    (spit (io/file outdir "index.html") (apply str body))))
 
 (defn update-benchmarks [dir output-dir]
   (let [last-head (io/file "last-head")
