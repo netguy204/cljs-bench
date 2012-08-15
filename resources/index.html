@@ -1,8 +1,20 @@
 <html>
 <head>
 <style>
+
 body {
 background:url("background.png");
+}
+
+#body1 {
+background: #eee;
+width: 802px;
+margin: 0 auto;
+padding: 20px;
+border-style: solid;
+border-color: #000;
+border-width: 0 1px;
+box-shadow: 0px 0 30px #fff;
 }
 
 h1 {
@@ -11,36 +23,12 @@ background:#ccc;
 border-top-style:solid;
 }
 
-#body1 {
-background: #eee;
-width: 802px;
-margin: 0 auto;
-padding: 20px;
-border-left-style: solid;
-border-left-color: #fff;
-border-left-width: 1px;
-border-right-style: solid;
-border-right-color: #000;
-border-right-width: 2px;
-}
-
 #logo {
 background:url("cljsbench_logo.png");
 background-repeat:repeat-x;
 height:230;
 padding:0px;
 width:802;
-}
-
-.plot img {
-border-style: solid;
-border-width: 1px;
-border-color: #ccc;
-}
-
-.plot {
-margin-bottom:10px;
-box-shadow: 0 1px 0;
 }
 
 #nav {
@@ -104,6 +92,18 @@ margin: 40px auto;
 height:auto;
 }
 
+.plot img {
+border-style: solid;
+border-width: 1px;
+border-color: #ccc;
+}
+
+.plot {
+margin-bottom:10px;
+box-shadow: 0 1px 0;
+}
+
+*/
 </style>
 </head>
 
@@ -123,10 +123,6 @@ height:auto;
 </ul>
 
 <div id="plots">
-<div class="plot">
-  <a name="plot-1"></a>
-  <img src="0.png" />
-</div>
 <div class="plot">
   <a name="plot-1"></a>
   <img src="0.png" />
