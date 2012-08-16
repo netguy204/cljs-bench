@@ -363,7 +363,7 @@
       (spit (:file results-csv) (results->csv data (:runtime results-csv))))
 
     ;; copy static resources
-    (doseq [res ["cljsbench_logo.png" "background.png"]]
+    (doseq [res ["cljsbench_logo.png" "background.png" "style.css"]]
       (io/copy (.. (io/resource res) (openConnection) (getInputStream)) (io/file outdir res)))
     
     (spit (io/file outdir "index.html") (apply str body))))

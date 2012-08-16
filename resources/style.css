@@ -1,0 +1,100 @@
+body {
+background:url("background.png");
+}
+
+#body1 {
+background: #eee;
+width: 802px;
+margin: 0 auto;
+padding: 20px;
+border-style: solid;
+border-color: #000;
+border-width: 0 1px;
+box-shadow: 0px 0 30px #fff;
+}
+
+h1 {
+text-align:center;
+background:#ccc;
+border-top-style:solid;
+}
+
+#logo {
+background:url("cljsbench_logo.png");
+background-repeat:repeat-x;
+height:230;
+padding:0px;
+width:802;
+}
+
+#nav {
+height:auto;
+border-style:solid;
+border-width: 0 0 1;
+border-color:#aaa;;
+}
+
+#nav li {
+display: inline-block;
+height: 50px;
+}
+
+#nav a {
+padding:10px;
+margin-right:5px;
+border-style: solid;
+border-width: 1 1 2 0;
+border-color: #fff #ccc #888 #ccc;
+background: #ccc;
+text-decoration: none;
+color: #333;
+font-weight: bold;
+-webkit-border-radius: 5px;
+-moz-border-radius: 5px;
+}
+
+#nav a:hover {
+background:#66a;
+color:#fff;
+}
+
+#plot-list li {
+display: inline-block;
+height: 50px;
+}
+
+#plot-list a {
+padding:10px;
+margin-right:5px;
+border-style: solid;
+border-width: 1 1 2 0;
+border-color: #fff #ccc #888 #ccc;
+background: #dcc;
+text-decoration: none;
+color: #333;
+font-weight: bold;
+-webkit-border-radius: 5px;
+-moz-border-radius: 5px;
+}
+
+#plot-list a:hover {
+background:#a66;
+color:#fff;
+}
+
+#plot-list {
+padding 20px;
+margin: 40px auto;
+height:auto;
+}
+
+.plot img {
+border-style: solid;
+border-width: 1px;
+border-color: #ccc;
+}
+
+.plot {
+margin-bottom:10px;
+box-shadow: 0 1px 0;
+}
