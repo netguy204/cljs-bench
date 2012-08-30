@@ -31,6 +31,7 @@
 (simple-benchmark-data [] (list) 1000000)
 (simple-benchmark-data [] (list 1 2 3) 1000000)
 
+;; vector ops
 (simple-benchmark-data [] [] 1000000)
 (simple-benchmark-data [] [1 2 3] 1000000)
 (simple-benchmark-data [coll [1 2 3]] (transient coll) 100000)
@@ -45,9 +46,20 @@
 (simple-benchmark-data [coll (seq [1 2 3])] (-rest coll) 1000000)
 (simple-benchmark-data [coll (seq [1 2 3])] (next coll) 1000000)
 
+;; large vector ops
+(simple-benchmark-data [] (reduce conj [] (range 40000)) 10)
+(simple-benchmark-data [coll (reduce conj [] (range (+ 32768 32)))] (conj coll :foo) 100000)
+(simple-benchmark-data [coll (reduce conj [] (range 40000))] (assoc coll 123 :foo) 100000)
+(simple-benchmark-data [coll (reduce conj [] (range (+ 32768 33)))] (pop coll) 100000)
+
+;; lazy seq reduce
 (simple-benchmark-data [coll (take 100000 (iterate inc 0))] (reduce + 0 coll) 1)
 (simple-benchmark-data [coll (range 1000000)] (reduce + 0 coll) 1)
 (simple-benchmark-data [coll (into [] (range 1000000))] (reduce + 0 coll) 1)
+
+;; apply
+(simple-benchmark-data [coll (into [] (range 1000000))] (apply + coll) 1)
+
 
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (get coll :foo) 1000000)
 (simple-benchmark-data [coll {:foo 1 :bar 2}] (-lookup coll :foo nil) 1000000)
